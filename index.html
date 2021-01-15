@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>אופיר מייל - מייל חד פעמי</title>
+
+    <link rel='stylesheet' href='//cdn.repl.email/styles/water.css'>
+    <link rel="icon" href="mail.png">
+    <link rel='manifest' href='manifest.json'>
+
+    <style>
+        #status {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100vw;
+            height: 20px;
+            text-align: center;
+            color: gray;
+        }
+
+        .qa{
+            color: green;
+            text-align: right;
+        }
+
+        .qa-answer{
+            font-weight: bold;
+            text-align: right;
+        }
+        .koteret{
+            font-weight: bold;
+            text-align: right;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1 class='koteret'><a href="/">אופיר מייל</a></h1>
+
+    <div id='about'>
+        <h3 class='qa'>?בשביל מה השירות הזה</h3>
+        <p class='qa-answer'>
+            !אופיר מייל הוא שירות מייל חד פעמי חינמי
+            !כך תוכלו לשמור על תיבת המייל האמיתית שלכם בטוחה
+        </p>
+        <p class='qa-answer'>
+            בבקשה אל תשכחו שכל אחד יכול להשתמש בכתובת האיימיל שלכם
+        </p>
+        <h3 class='qa'>?האם אני יכול לשלוח מייל</h3>
+        <p class='qa-answer'>
+!לא, השירות הוא לקבלת מייל בלבד
+        </p>
+        <h3 class='qa'>?האם יש הגבלה במספר ההודעות שמקבלים</h3>
+        <p class='qa-answer'>
+        !לא, אפשר לקבל אין סוף הודעות.
+        </p>
+        <h3 class='qa'>?האם אני יכול להשתמש בכתובת מותאמת אישית</h3>
+        <p class='qa-answer'>
+          !כן. השם משתמש (החלק שלפני ה <code>@</code>) יכול להשתנות לכל דבר
+        </p>
+        <h4 class='qa'> הודעה: כל הודעה הנשמרת על שרתי האתר תימחק אחרי 60 דקות! בבקשה שימו לב
+        </h4>
+        <button onclick='$("#about").hide()'>סגירת שאלות</button>
+    </div>
+
+    <hr>
+
+    <input id='addr' placeholder="email address" style='width: 49%'>
+    <button onclick='refreshMail()'>טעינת הודעות</button>
+    <button onclick="genEmail()">כתובת איימיל חדשה</button>
+
+    <hr>
+
+    <table id='emails'></table>
+
+
+    <script src='//code.jquery.com/jquery.min.js'></script>
+    <!-- Add back when dupl analytics is working
+    <script src='//analytics.dupl.tech/analytics.js'></script>
+    -->
+    <script>
+
+        function genEmail() {
+            $.getJSON("https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1", (res) => {
+                $('#addr').val(res[0]);
+                refreshMail();
+            })
+        }
+
+        function refreshMail() {
+            addr = $('#addr').val();
+            if (!addr) {
+                alert("בבקשה לחצו על כתובת איימיל חדשה");
+                return
+            }
+
+            user = addr.split('@')[0];
+            domain = addr.split('@')[1];
+
+            $.getJSON(`https://www.1secmail.com/api/v1/?action=getMessages&login=${user}&domain=${domain}`, (emails) => {
+                $('#emails').empty();
+
+                $('#emails').append($(`
+                    <tr>
+                        <th><b>מספר</b></th>
+                        <th><b>שולח</b></th>
+                        <th><b>נושא</b></th>
+                        <th><b>תאריך</b></th>
+                        <th><b>תוכן</b></th>
+                    </tr>
+                `));
+
+                for (i in emails) {
+                    email = emails[i];
+
+                    $('#emails').append($(`
+                        <tr>
+                            <td>${email['id']}</td>
+                            <td>${email['from']}</td>
+                            <td>${email['subject']}</td>
+                            <td>${email['date']}</td>
+                            <td id="${email['id']}"><a onclick="loadEmail('${email['id']}')">טען תוכן...</a></td>
+                        </tr>
+                    `))
+                }
+            })
+        }
+
+        function loadEmail(id) {
+            addr = $('#addr').val();
+            if (!addr) {
+                alert("בבקשה לחצו על כתובת איימיל חדשה או כתבו את כתובת האיימיל הקודמת שלכם");
+                return
+            }
+
+            user = addr.split('@')[0];
+            domain = addr.split('@')[1];
+
+            $.getJSON(`https://www.1secmail.com/api/v1/?action=readMessage&login=${user}&domain=${domain}&id=${id}`, (email) => {
+                elm = $(`#${id}`);
+                if (email['htmlBody']) {
+                    elm.html(email['htmlBody']);
+                } else {
+                    elm.text(email['body']);
+                }
+
+                atts = $('<div></div>');
+                for (i in email['attachments']) {
+                    file = email['attachments'][i];
+
+                    atts.append($(`<a href='https://www.1secmail.com/api/v1/?action=download&login=${user}&domain=${domain}&id=${id}&file=${file['filename']}'>${file['filename']}</a>`));
+                }
+                elm.append(atts);
+            })
+        }
+
+        $(function() {
+            genEmail();
+        })
+
+    </script>
+    
+</body>
+</html>
